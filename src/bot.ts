@@ -7,18 +7,18 @@ import { formatDate } from "./utils/formatDate";
 
 const bot = new Telegraf(config.BOT_TOKEN);
 
-bot.start(async (ctx) => {
-    await ctx.reply(
-        "Добро пожаловать! Выберите действие:",
-        Markup.inlineKeyboard([
-            [
-                Markup.button.webApp(
-                    "🗓 Записаться",
-                    "https://massagebook-web.vercel.app"
-                ),
-            ],
-            [Markup.button.callback("📋 Мои записи", "my_bookings")],
+bot.start((ctx) => {
+    ctx.reply(
+        "Добро пожаловать! Вы можете записаться на массаж:",
+        Markup.keyboard([
+            Markup.button.webApp(
+                "🗓 Записаться",
+                "https://massagebook-web.vercel.app/"
+            ),
+            Markup.button.text("📋 Мои записи"),
         ])
+            .resize()
+            .oneTime()
     );
 });
 

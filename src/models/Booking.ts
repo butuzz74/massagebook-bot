@@ -1,7 +1,7 @@
 import { Schema, model } from "mongoose";
 
 const bookingShema = new Schema({
-    telegramID: Number,
+    telegramId: Number,
     massageId: { type: Schema.Types.ObjectId, ref: "Massage" },
     massage: String,
     date: String,
