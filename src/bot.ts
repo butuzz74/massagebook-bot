@@ -1,22 +1,53 @@
 import { Telegraf, Markup } from "telegraf";
 import { Message } from "telegraf/typings/core/types/typegram";
 import { config } from "./config";
+import Booking from "./models/Booking";
+import { connectDb } from "./db";
+import { formatDate } from "./utils/formatDate";
 
 const bot = new Telegraf(config.BOT_TOKEN);
 
-bot.start((ctx) => {
-    ctx.reply(
-        "Добро пожаловать! Вы можете записаться на массаж:",
-        Markup.keyboard([
-            Markup.button.webApp(
-                "🗓 Записаться",
-                "https://massagebook-web.vercel.app"
-            ),
-            Markup.button.text("📋 Мои записи"),
+bot.start(async (ctx) => {
+    await ctx.reply(
+        "Добро пожаловать! Выберите действие:",
+        Markup.inlineKeyboard([
+            [
+                Markup.button.webApp(
+                    "🗓 Записаться",
+                    "https://massagebook-web.vercel.app"
+                ),
+            ],
+            [Markup.button.callback("📋 Мои записи", "my_bookings")],
         ])
-            .resize()
-            .oneTime()
     );
+});
+
+bot.action("my_bookings", async (ctx) => {
+    await ctx.answerCbQuery();
+
+    const telegramId = ctx.from?.id;
+    if (!telegramId) return ctx.reply("Не удалось определить Ваш telegramId");
+
+    await connectDb();
+    const bookings = await Booking.find({ telegramId });
+
+    if (bookings.length === 0)
+        return ctx.reply("У вас нет актуальных записей.");
+
+    const currentDate = formatDate(new Date());
+
+    const text = bookings.map((elem, index) => {
+        if (
+            elem.date &&
+            typeof elem.date === "string" &&
+            elem.date >= currentDate
+        ) {
+            return `${index + 1}. 💆‍♂️ ${elem.massage}\n   📅 ${elem.date} ⏰ ${
+                elem.time
+            }`;
+        }
+    });
+    await ctx.reply(`Ваши записи:\n\n${text}`);
 });
 
 bot.on("message", async (ctx) => {
