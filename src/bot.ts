@@ -76,18 +76,22 @@ bot.action("my_bookings", async (ctx) => {
 
     const currentDate = formatDate(new Date());
 
-    const text = bookings.map((elem, index) => {
-        if (
-            elem.date &&
-            typeof elem.date === "string" &&
-            elem.date >= currentDate
-        ) {
-            return `${index + 1}. 💆‍♂️ ${elem.massage}\n   📅 ${elem.date} ⏰ ${
-                elem.time
-            }`;
-        }
-    });
-    await ctx.reply(`Ваши записи:\n\n${text}`);
+    const text = bookings
+        .filter(
+            (elem) =>
+                elem.date &&
+                typeof elem.date === "string" &&
+                elem.date >= currentDate
+        )
+        .map(
+            (elem, index) =>
+                `${index + 1}️⃣ 💆‍♂️ <b>${elem.massage}</b>\n📅 <b>${
+                    elem.date
+                }</b> ⏰ <b>${elem.time}</b>`
+        )
+        .join("\n\n");
+
+    await ctx.reply(`Ваши записи:\n\n${text}`, { parse_mode: "HTML" });
 });
 
 export default bot;
