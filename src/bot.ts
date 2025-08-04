@@ -1,30 +1,70 @@
 import { Telegraf, Markup } from "telegraf";
-import { Message } from "telegraf/typings/core/types/typegram";
 import { config } from "./config";
 import Booking from "./models/Booking";
 import { connectDb } from "./db";
 import { formatDate } from "./utils/formatDate";
+import express from "express";
+import cors from "cors";
+
+type BookingType = {
+    telegramId?: number;
+    massage?: string;
+    date?: string;
+    time?: string;
+    name?: string;
+    phone?: string;
+};
+
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 const bot = new Telegraf(config.BOT_TOKEN);
 
-bot.start((ctx) => {
-    ctx.reply(
-        "Добро пожаловать! Вы можете записаться на массаж:",
-        Markup.keyboard([
-            Markup.button.webApp(
-                "🗓 Записаться",
-                "https://massagebook-web.vercel.app/"
-            ),
-            Markup.button.text("📋 Мои записи"),
+app.post("/booking", async (req, res) => {
+    const { time, telegramId, massage, date, name, phone } =
+        req.body as BookingType;
+
+    if (!telegramId) return res.status(400).send("telegramId обязателен");
+
+    try {
+        await bot.telegram.sendMessage(
+            telegramId,
+            `✅ ${name}, ваша запись подтверждена:\n💆‍♂️ ${massage}\n📅 ${date}\n⏰ ${time}\n📞 ${phone}`
+        );
+
+        await bot.telegram.sendMessage(
+            process.env.MASTER_TELEGRAM_ID!,
+            `📬 Новый заказ:\n👤 ${name}\n💆‍♂️ ${massage}\n📅 ${date}\n⏰ ${time}\n📞 ${phone}`
+        );
+
+        res.send({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Ошибка при отправке сообщения");
+    }
+});
+
+const PORT = parseInt(config.PORT || "3001", 10);
+
+app.listen(PORT, "0.0.0.0", () => console.log("Listening on all interfaces"));
+
+bot.start(async (ctx) => {
+    await ctx.reply(
+        "Добро пожаловать! Выберите действие:",
+        Markup.inlineKeyboard([
+            [
+                Markup.button.webApp(
+                    "🗓 Записаться",
+                    "https://massagebook-web.vercel.app"
+                ),
+            ],
+            [Markup.button.callback("📋 Мои записи", "my_bookings")],
         ])
-            .resize()
-            .oneTime()
     );
 });
 
 bot.action("my_bookings", async (ctx) => {
-    await ctx.answerCbQuery();
-
     const telegramId = ctx.from?.id;
     if (!telegramId) return ctx.reply("Не удалось определить Ваш telegramId");
 
@@ -48,26 +88,6 @@ bot.action("my_bookings", async (ctx) => {
         }
     });
     await ctx.reply(`Ваши записи:\n\n${text}`);
-});
-
-bot.on("message", async (ctx) => {
-    const message = ctx.message as Message.WebAppDataMessage;
-
-    if (message.web_app_data && message.web_app_data.data) {
-        try {
-            const data = JSON.parse(message.web_app_data.data);
-            await ctx.reply(
-                `${data.name}! Спасибо за Ваш выбор!\nВы записались на: ${data.massage}\nДата: ${data.date}\nВремя: ${data.time}\nМастер свяжется с Вами по телефону ${data.phone} для уточнения деталей`
-            );
-
-            await ctx.telegram.sendMessage(
-                config.MASTER_TELEGRAM_ID,
-                `📬 Новый заказ:\n👤 Клиент: ${data.name}\n💆‍♂️ Услуга: ${data.massage}\n📅 Дата: ${data.date}\n⏰ Время: ${data.time}\n📞 Телефон: ${data.phone}`
-            );
-        } catch (e) {
-            await ctx.reply("Произошла ошибка при обработке данных 😢");
-        }
-    }
 });
 
 export default bot;

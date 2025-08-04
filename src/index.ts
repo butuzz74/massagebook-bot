@@ -1,5 +1,5 @@
 import bot from "./bot";
 
-bot.launch().then(() => {
+bot.launch({}).then(() => {
     console.log("✅ Бот запущен");
 });
