@@ -26,7 +26,7 @@ cron.schedule("0 10 * * *", async () => {
     await cleanOldWorkingDays();
 });
 
-cron.schedule("0 20 * * *", async () => {
+cron.schedule("*/5 * * * *", async () => {
     await connectDb();
 
     const date = new Date();
