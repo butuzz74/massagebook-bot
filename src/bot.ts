@@ -5,6 +5,8 @@ import { connectDb } from "./db";
 import { formatDate } from "./utils/formatDate";
 import express from "express";
 import cors from "cors";
+import cron from "node-cron";
+import { cleanOldWorkingDays } from "./utils/clearningOldWorkingDays";
 
 type BookingType = {
     telegramId?: number;
@@ -18,6 +20,53 @@ type BookingType = {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+cron.schedule("0 10 * * *", async () => {
+    await connectDb();
+    await cleanOldWorkingDays();
+});
+
+cron.schedule("0 20 * * *", async () => {
+    await connectDb();
+
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    const tomorrow = formatDate(date);
+
+    const bookingOnTomorrow = await Booking.find({ date: tomorrow });
+
+    if (bookingOnTomorrow.length === 0) {
+        await bot.telegram.sendMessage(
+            process.env.MASTER_TELEGRAM_ID!,
+            "❌ На завтра у вас нет записей."
+        );
+    } else {
+        const listBookingsForMaster = bookingOnTomorrow
+            .map(
+                (elem, index) =>
+                    `${index + 1}️⃣ 💆‍♂️ <b>${elem.massage}</b>\n📅 <b>${
+                        elem.date
+                    }</b> ⏰ <b>${elem.time}</b>`
+            )
+            .join("\n\n");
+
+        await bot.telegram.sendMessage(
+            process.env.MASTER_TELEGRAM_ID!,
+            `Ваши записи на завтра:\n\n${listBookingsForMaster}`,
+            { parse_mode: "HTML" }
+        );
+
+        for (const elem of bookingOnTomorrow) {
+            if (elem.telegramId) {
+                await bot.telegram.sendMessage(
+                    elem.telegramId,
+                    `✅ ${elem.name}, вы записаны на завтра:\n💆‍♂️ ${elem.massage}\n📅 ${tomorrow}\n⏰ ${elem.time}`,
+                    { parse_mode: "HTML" }
+                );
+            }
+        }
+    }
+});
 
 const bot = new Telegraf(config.BOT_TOKEN);
 
